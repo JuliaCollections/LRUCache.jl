@@ -1,5 +1,7 @@
 # LRUCache.jl
 
+[![Build Status](https://travis-ci.org/jcrist/LRUCache.jl.svg)](https://travis-ci.org/jcrist/LRUCache.jl)
+
 Provides an implementation of a Least Recently Used (LRU) Cache for Julia.
 
 An LRU Cache is a useful associative data structure that has a set maximum
@@ -72,7 +74,7 @@ end
 #### @get!(lru::LRU, key, default)
 
 The `do` block syntax of `get!` is nice, but can be slow due to how Julia
-currently handles anonymous functions. The `@get` macro is an attempt to get
+currently handles anonymous functions. The `@get!` macro is an attempt to get
 around this issue. It takes 3 parameters: the cache, a key to lookup, and a
 default.  Note that as this is handled with meta-programming, the default can
 be *anything that can be set as the right-hand-side of an assignment*. Example.
