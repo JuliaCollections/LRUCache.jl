@@ -1,2 +1,3 @@
-using LRUCache
-using Base.Test
+print("RUNNING TESTS:    ")
+include("test.jl")
+println("[OK]")

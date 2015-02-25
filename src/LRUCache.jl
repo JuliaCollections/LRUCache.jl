@@ -32,12 +32,12 @@ Base.get(lru::LRU, key, default) = haskey(lru, key) ? lru[key] : default
 macro get!(lru, key, default)
     quote
         if haskey($(esc(lru)), $(esc(key)))
-            return $(esc(lru))[$(esc(key))]
+            value = $(esc(lru))[$(esc(key))]
         else
             value = $(esc(default))
             $(esc(lru))[$(esc(key))] = value
-            return value
         end
+        value
     end
 end
 
