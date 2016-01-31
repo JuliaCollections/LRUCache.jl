@@ -6,13 +6,15 @@ include("list.jl")
 
 # Default cache size
 const __MAXCACHE__ = 100
+noop(k,v) = nothing
 
 type LRU{K,V} <: Associative{K,V}
     ht::Dict{K, LRUNode{K, V}}
     q::LRUList{K, V}
     maxsize::Int
+    cb::Function
 
-    LRU(m::Int=__MAXCACHE__) = new(Dict{K, V}(), LRUList{K, V}(), m)
+    LRU(m::Int=__MAXCACHE__; callback::Function=noop) = new(Dict{K, V}(), LRUList{K, V}(), m, callback)
 end
 LRU(m::Int=__MAXCACHE__) = LRU{Any, Any}(m)
 
@@ -76,6 +78,7 @@ function Base.setindex!{K, V}(lru::LRU{K, V}, v, key)
         # data, and update new data in place.
         rotate!(lru.q)
         item = first(lru.q)
+        lru.cb(item.k, item.v)
         delete!(lru.ht, item.k)
         item.k = key
         item.v = v
@@ -100,12 +103,16 @@ end
 
 function Base.delete!(lru::LRU, key)
     item = lru.ht[key]
+    lru.cb(item.k, item.v)
     delete!(lru.q, item)
     delete!(lru.ht, key)
     return lru
 end
 
 function Base.empty!(lru::LRU)
+    for item in values(lru.ht)
+        lru.cb(item.k, item.v)
+    end
     empty!(lru.ht)
     empty!(lru.q)
 end

@@ -86,10 +86,35 @@ end
 # Test Abstract typed cache. All we're checking for here is that the container
 # is able to hold abstract types without issue. Insertion order is already
 # tested above.
-const CACHE2 = LRU{String, Integer}(5)
+const CACHE2 = LRU{AbstractString, Integer}(5)
 CACHE2["test"] = 4
 CACHE2[utf8("test2")] = BigInt(5)
 @test CACHE2["test"] == 4
 @test CACHE2["test2"] == 5
+
+# Test callbacks
+function test_cb()
+    removed = Tuple[]
+    CACHE3 = LRU{Int, Int}(3; callback=(x,y)->push!(removed, (x,y)))
+    for i in 1:5
+        CACHE3[i] = i*10
+    end
+
+    @test length(removed) == 2
+    for i in 1:2
+        x,y = shift!(removed)
+        @test x == i
+        @test y == x * 10
+    end
+
+    empty!(CACHE3)
+    @test length(removed) == 3
+    for i in 3:5
+        x,y = shift!(removed)
+        @test 2 < x < 6
+        @test y == x * 10
+    end
+end
+test_cb()
 
 end

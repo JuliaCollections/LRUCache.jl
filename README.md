@@ -20,11 +20,13 @@ operations are shown below:
 **Creation**
 
 ```julia
-lru = LRU{K, V}([, maxsize=100])
+lru = LRU{K, V}([, maxsize=100]; callback=cb)
 ```
 
 Create an LRU Cache with maximum size `maxsize`. If `maxsize` is not provided,
 a default of `100` is used.
+
+When an item is being evicted from the cache, the callback function `cb` will be called with its key and value.
 
 **Add an item to the cache**
 
