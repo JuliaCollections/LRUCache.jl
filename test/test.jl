@@ -88,8 +88,6 @@ end
 # tested above.
 const CACHE2 = LRU{String, Integer}(5)
 CACHE2["test"] = 4
-CACHE2[utf8("test2")] = BigInt(5)
 @test CACHE2["test"] == 4
-@test CACHE2["test2"] == 5
 
 end
