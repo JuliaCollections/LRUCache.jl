@@ -1,16 +1,12 @@
 # LRUCache.jl
 
-[![Build Status](https://travis-ci.org/jcrist/LRUCache.jl.svg)](https://travis-ci.org/jcrist/LRUCache.jl)
+[![Build Status](https://travis-ci.org/JuliaCollections/LRUCache.jl.svg)](https://travis-ci.org/JuliaCollections/LRUCache.jl)
 
 Provides an implementation of a Least Recently Used (LRU) Cache for Julia.
 
 An LRU Cache is a useful associative data structure that has a set maximum
 size. Once that size is reached, the least recently used items are removed
 first.
-
-Note that this package requires the new
-[Nullable](http://julia.readthedocs.org/en/latest/manual/types/#nullable-types-representing-missing-values)
-types feature, and thus doesn't work with Julia 0.3 (the current release).
 
 ## Interface
 
