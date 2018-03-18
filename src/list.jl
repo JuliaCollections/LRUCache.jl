@@ -100,7 +100,7 @@ end
 
 # Move the node n to the front of the list
 function move_to_front!{T}(l::LRUList{T}, n::LRUNode{T})
-    if !is(first(l), n)
+    if !(first(l) === n)
         pop!(l, n)
         unshift!(l, n)
     end
