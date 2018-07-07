@@ -7,16 +7,16 @@ include("list.jl")
 # Default cache size
 const __MAXCACHE__ = 100
 
-type LRU{K,V} <: Associative{K,V}
+mutable struct LRU{K,V} <: AbstractDict{K,V}
     ht::Dict{K, LRUNode{K, V}}
     q::LRUList{K, V}
     maxsize::Int
 
-    LRU(m::Int=__MAXCACHE__) = new(Dict{K, V}(), LRUList{K, V}(), m)
+    LRU{K, V}(m::Int=__MAXCACHE__) where {K, V} = new{K, V}(Dict{K, V}(), LRUList{K, V}(), m)
 end
 LRU(m::Int=__MAXCACHE__) = LRU{Any, Any}(m)
 
-Base.show{K, V}(io::IO, lru::LRU{K, V}) = print(io,"LRU{$K, $V}($(lru.maxsize))")
+Base.show(io::IO, lru::LRU{K, V}) where {K, V} = print(io,"LRU{$K, $V}($(lru.maxsize))")
 
 Base.start(lru::LRU) = start(lru.ht)
 Base.next(lru::LRU, state) = next(lru.ht, state)
@@ -41,7 +41,7 @@ macro get!(lru, key, default)
     end
 end
 
-function Base.get!{K,V}(default::Base.Callable, lru::LRU{K, V}, key::K)
+function Base.get!(default::Base.Callable, lru::LRU{K, V}, key::K) where {K,V}
     if haskey(lru, key)
         return lru[key]
     else
@@ -51,7 +51,7 @@ function Base.get!{K,V}(default::Base.Callable, lru::LRU{K, V}, key::K)
     end
 end
 
-function Base.get!{K,V}(lru::LRU{K,V}, key::K, default::V)
+function Base.get!(lru::LRU{K,V}, key::K, default::V) where {K,V}
     if haskey(lru, key)
         return lru[key]
     else
@@ -66,7 +66,7 @@ function Base.getindex(lru::LRU, key)
     return node.v
 end
 
-function Base.setindex!{K, V}(lru::LRU{K, V}, v, key)
+function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
     if haskey(lru, key)
         item = lru.ht[key]
         item.v = v
