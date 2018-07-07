@@ -1,7 +1,7 @@
 module Tests
 
 using LRUCache
-using Base.Test
+using Test
 
 function test_order(lru, keys, vals)
     if length(lru) != 0
@@ -10,7 +10,7 @@ function test_order(lru, keys, vals)
         @test f.v == vals[1]
         n = f.next
         i = 2
-        while !is(n, f)
+        while n !== f
             @test n.k == keys[i]
             @test n.v == vals[i]
             i += 1
