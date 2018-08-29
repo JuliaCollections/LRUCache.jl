@@ -85,7 +85,7 @@ function Base.pop!(l::LRUList{K, V}, n::LRUNode{K, V}=last(l)) where {K, V}
     return n
 end
 
-function Base.unshift!(l::LRUList{K, V}, el::LRUNode{K, V}) where {K, V}
+function Base.pushfirst!(l::LRUList{K, V}, el::LRUNode{K, V}) where {K, V}
     push!(l, el)
     rotate!(l)
 end
@@ -102,7 +102,7 @@ end
 function move_to_front!(l::LRUList{T}, n::LRUNode{T}) where {T}
     if first(l) !== n
         pop!(l, n)
-        unshift!(l, n)
+        pushfirst!(l, n)
     end
     return l
 end

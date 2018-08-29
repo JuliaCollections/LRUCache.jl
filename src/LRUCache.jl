@@ -18,9 +18,8 @@ LRU(m::Int=__MAXCACHE__) = LRU{Any, Any}(m)
 
 Base.show(io::IO, lru::LRU{K, V}) where {K, V} = print(io,"LRU{$K, $V}($(lru.maxsize))")
 
-Base.start(lru::LRU) = start(lru.ht)
-Base.next(lru::LRU, state) = next(lru.ht, state)
-Base.done(lru::LRU, state) = done(lru.ht, state)
+Base.iterate(lru::LRU) = iterate(lru.ht)
+Base.iterate(lru::LRU, state) = iterate(lru.ht, state)
 
 Base.length(lru::LRU) = length(lru.q)
 Base.isempty(lru::LRU) = isempty(lru.q)
@@ -82,7 +81,7 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
         lru.ht[key] = item
     else
         item = LRUNode{K, V}(key, v)
-        unshift!(lru.q, item)
+        pushfirst!(lru.q, item)
         lru.ht[key] = item
     end
     return lru
