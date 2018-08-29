@@ -82,7 +82,7 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
         lru.ht[key] = item
     else
         item = LRUNode{K, V}(key, v)
-        unshift!(lru.q, item)
+        pushfirst!(lru.q, item)
         lru.ht[key] = item
     end
     return lru
