@@ -31,6 +31,7 @@ Base.sizehint!(lru::LRU, n::Integer) = sizehint!(lru.ht, n)
 
 Base.haskey(lru::LRU, key) = haskey(lru.ht, key)
 Base.get(lru::LRU, key, default) = haskey(lru, key) ? lru[key] : default
+Base.get(default::Base.Callable, lru::LRU, key) = haskey(lru, key) ? lru[key] : default()
 
 macro get!(lru, key, default)
     @warn "`@get! lru key default(args...)` is deprecated, use `get!(()->default(args...), lru, key)` or
@@ -98,9 +99,9 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
 end
 
 import Base: resize!
-Base.@deprecate resize!(lru::LRU, m::Int) set!(lru; maxsize = m)
+Base.@deprecate resize!(lru::LRU, m::Int) resize!(lru; maxsize = m)
 
-function set!(lru::LRU; maxsize::Int)
+function resize!(lru::LRU; maxsize::Int)
     maxsize < 0 && error("size must be a positive integer")
     lru.maxsize = maxsize
     for i in 1:(length(lru) - lru.maxsize)
