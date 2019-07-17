@@ -19,7 +19,7 @@ function test_order(lru, keys, vals)
     end
 end
 
-const CACHE = LRU{Int, Int}(20)
+const CACHE = LRU{Int, Int}(; maxsize = 20)
 # Test insertion ordering
 kvs = 1:10
 for i in reverse(kvs)
@@ -35,10 +35,10 @@ end
 test_order(CACHE, kvs, kvs)
 
 # Test least recently used items are evicted
-resize!(CACHE, 5)
+resize!(CACHE; maxsize = 5)
 test_order(CACHE, kvs[1:5], kvs[1:5])
 
-resize!(CACHE, 10)
+resize!(CACHE; maxsize = 10)
 test_order(CACHE, kvs[1:5], kvs[1:5])
 
 kvs = 1:11
@@ -74,19 +74,10 @@ get!(CACHE, 2) do
     error("this shouldn't have been called!")
 end
 
-# Test @get! with begin block
-val = @get! CACHE 3 begin
-    4
-end
-@test val == 4
-@get! CACHE 3 begin
-    error("this shouldn't have been called!")
-end
-
 # Test Abstract typed cache. All we're checking for here is that the container
 # is able to hold abstract types without issue. Insertion order is already
 # tested above.
-const CACHE2 = LRU{String, Integer}(5)
+const CACHE2 = LRU{String, Integer}(; maxsize = 5)
 CACHE2["test"] = 4
 @test CACHE2["test"] == 4
 
