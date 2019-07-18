@@ -18,7 +18,7 @@ matrix:
 env:
   matrix:
     - JULIA_NUM_THREADS=1
-#    - JULIA_NUM_THREADS=4
+    - JULIA_NUM_THREADS=4
 #
 ## uncomment the following lines to override the default test script
 

@@ -4,18 +4,9 @@ using LRUCache
 using Test
 
 function test_order(lru, keys, vals)
-    if length(lru) != 0
-        f = first(lru.q)
-        @test f.k == keys[1]
-        @test f.v == vals[1]
-        n = f.next
-        i = 2
-        while n !== f
-            @test n.k == keys[i]
-            @test n.v == vals[i]
-            i += 1
-            n = n.next
-        end
+    for (i, (k,v)) = enumerate(lru)
+        @test k == keys[i]
+        @test v == vals[i]
     end
 end
 
