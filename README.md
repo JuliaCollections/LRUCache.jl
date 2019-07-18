@@ -10,36 +10,36 @@ first.
 
 ## Interface
 
-`LRU` supports the standard `Associative` interface. Some examples of common
+`LRU` supports the standard `AbstractDict` interface. Some examples of common
 operations are shown below:
 
 **Creation**
 
 ```julia
-lru = LRU{K, V}([, maxsize=100])
+lru = LRU{K, V}(, maxsize = size)
 ```
 
-Create an LRU Cache with maximum size `maxsize`. If `maxsize` is not provided,
-a default of `100` is used.
+Create an LRU Cache with a maximum size (number of items) specified by the *required*
+keyword argument `maxsize`.
 
 **Add an item to the cache**
 
 ```julia
-setitem!(lru, key, value)
+setindex!(lru, value, key)
 lru[key] = value
 ```
 
 **Lookup an item in the cache**
 
 ```julia
-getitem(lru, key)
+getindex(lru, key)
 lru[key]
 ```
 
 **Change the maxsize**
 
 ```julia
-resize!(lru, size)
+resize!(lru; maxsize = size)
 ```
 
 **Empty the cache**
@@ -50,15 +50,14 @@ empty!(lru)
 
 ### Caching Use
 
-To effectively use `LRU` as a cache, several functions and macros have been
-defined that allow for easy checking if an item is present, and if not quickly
-calculating a default.
+To effectively use `LRU` as a cache, several functions from the `AbstractDict` interface
+can be used for easy checking if an item is present, and if not quickly calculating a
+default.
 
 #### get!(lru::LRU, key, default)
 
 Returns the value stored in `lru` for `key` if present. If not, stores `key =>
 default`, and returns `default`.
-
 
 #### get!(default::Callable, lru::LRU, key)
 
@@ -71,55 +70,11 @@ get!(lru, key) do
 end
 ```
 
-#### @get!(lru::LRU, key, default)
+#### get(lru::LRU, key, default)
 
-The `do` block syntax of `get!` is nice, but can be slow due to how Julia
-currently handles anonymous functions. The `@get!` macro is an attempt to get
-around this issue. It takes 3 parameters: the cache, a key to lookup, and a
-default.  Note that as this is handled with meta-programming, the default can
-be *anything that can be set as the right-hand-side of an assignment*. Example.
+Returns the value stored in `lru` for `key` if present. If not, returns default without storing this value in `lru`. Also comes in the following form:
 
-```julia
-const lru = LRU{Float64, Int}()
-
-_foo(a::Float64) = ...    # Some long-running calculation that returns an Int
-
-function foo(a::Float64)
-    @get! lru a _foo(a)
-end
-```
-
-This expands (roughly) to:
-
-```julia
-function foo(a::Float64)
-    return begin
-        if haskey(lru, a)
-            value = lru[a]
-        else
-            value = _foo(a)
-            lru[a] = value
-        end
-        value
-    end
-end
-```
-
-The same can be done with a constant default value, or a `begin` block:
-
-```julia
-const lru = LRU{Int, Int}()
-
-function fib(a::Int)
-    @get! lru a begin
-        if a < 2
-            a
-        else
-            fib(a - 1) + fib(a - 2)
-        end
-    end
-end
-```
+#### get(default::Callable, lru::LRU, key)
 
 ## Example
 
@@ -143,6 +98,8 @@ As this function requires more than one parameter, we need a cache from
 const lru = LRU{Tuple{Float64, Float64}, Float64}()
 
 function cached_foo(a::Float64, b::Float64)
-    @get! lru (a, b) foo(a, b)
+    get!(lru, (a, b)) do
+      foo(a,b)
+    end
 end
 ```

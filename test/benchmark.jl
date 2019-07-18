@@ -7,10 +7,10 @@ using LRUCache
 # rather than on the function itself. Which is optimal for comparing
 # improvements to the cache speed.
 
-const FIBCACHE = LRU{Int, Int}(10)
+const FIBCACHE = LRU{Int, Int}(; maxsize = 10)
 
 function fib(a::Int)
-    @get! FIBCACHE a begin
+    get!(FIBCACHE, a) do
         if a < 2
             a
         else
@@ -20,7 +20,7 @@ function fib(a::Int)
 end
 
 function fib_benchmark(cachesize)
-    resize!(FIBCACHE, cachesize)
+    resize!(FIBCACHE; maxsize = cachesize)
     empty!(FIBCACHE)
     println("Cache Size = $cachesize")
     @time fib(50)
@@ -41,7 +41,7 @@ println()
 
 # Now we benchmark individual operations
 function setup_cache(cachesize, items)
-    resize!(FIBCACHE, cachesize)
+    resize!(FIBCACHE; maxsize = cachesize)
     empty!(FIBCACHE)
     for i in items
         FIBCACHE[i] = i
@@ -74,7 +74,7 @@ println()
 println("Insertion Benchmarks")
 println("--------------------")
 # Cache is empty, with size 5
-resize!(FIBCACHE, 5)
+resize!(FIBCACHE; maxsize = 5)
 empty!(FIBCACHE)
 println("Insertion when cache is not full, element not in cache")
 for i in 1:5

@@ -12,9 +12,13 @@ mutable struct LRU{K,V} <: AbstractDict{K,V}
     q::LRUList{K, V}
     maxsize::Int
 
-    LRU{K, V}(m::Int=__MAXCACHE__) where {K, V} = new{K, V}(Dict{K, V}(), LRUList{K, V}(), m)
+    LRU{K, V}(; maxsize::Int) where {K, V} =
+        new{K, V}(Dict{K, V}(), LRUList{K, V}(), maxsize)
 end
-LRU(m::Int=__MAXCACHE__) = LRU{Any, Any}(m)
+LRU(; maxsize::Int) = LRU{Any,Any}(; maxsize = maxsize)
+
+Base.@deprecate LRU(m::Int=__MAXCACHE__) LRU(; maxsize = m)
+Base.@deprecate (LRU{K, V}(m::Int=__MAXCACHE__) where {K, V}) (LRU{K, V}(; maxsize = m))
 
 Base.show(io::IO, lru::LRU{K, V}) where {K, V} = print(io,"LRU{$K, $V}($(lru.maxsize))")
 
@@ -27,8 +31,15 @@ Base.sizehint!(lru::LRU, n::Integer) = sizehint!(lru.ht, n)
 
 Base.haskey(lru::LRU, key) = haskey(lru.ht, key)
 Base.get(lru::LRU, key, default) = haskey(lru, key) ? lru[key] : default
+Base.get(default::Base.Callable, lru::LRU, key) = haskey(lru, key) ? lru[key] : default()
 
 macro get!(lru, key, default)
+    @warn "`@get! lru key default(args...)` is deprecated, use `get!(()->default(args...), lru, key)` or
+    ```
+    get!(lru, key) do
+        default(args...)
+    end
+    ```"
     quote
         if haskey($(esc(lru)), $(esc(key)))
             value = $(esc(lru))[$(esc(key))]
@@ -87,9 +98,12 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
     return lru
 end
 
-function Base.resize!(lru::LRU, n::Int)
-    n < 0 && error("size must be a positive integer")
-    lru.maxsize = n
+import Base: resize!
+Base.@deprecate resize!(lru::LRU, m::Int) resize!(lru; maxsize = m)
+
+function resize!(lru::LRU; maxsize::Int)
+    maxsize < 0 && error("size must be a positive integer")
+    lru.maxsize = maxsize
     for i in 1:(length(lru) - lru.maxsize)
         rm = pop!(lru.q)
         delete!(lru.ht, rm.k)
