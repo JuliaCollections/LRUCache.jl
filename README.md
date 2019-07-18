@@ -1,12 +1,25 @@
 # LRUCache.jl
 
 [![Build Status](https://travis-ci.org/JuliaCollections/LRUCache.jl.svg)](https://travis-ci.org/JuliaCollections/LRUCache.jl)
+[![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
+[![codecov.io](http://codecov.io/github/JuliaCollections/LRUCache.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaCollections/LRUCache.jl?branch=master)
 
-Provides an implementation of a Least Recently Used (LRU) Cache for Julia.
+Provides a thread-safe implementation of a Least Recently Used (LRU) Cache for Julia.
 
-An LRU Cache is a useful associative data structure that has a set maximum
-size. Once that size is reached, the least recently used items are removed
-first.
+An LRU Cache is a useful associative data structure (`AbstractDict` in Julia) that has a
+set maximum size (as measured by number of elements or a custom size measure for items).
+Once that size is reached, the least recently used items are removed first. A lock ensures
+that data access does not lead to race conditions.
+
+A particular use case of this package is to implement function memoization for functions
+that can simultaneously be called from different threads.
+
+## Installation
+Install with the package manager via `]add LRUCache` or
+```julia
+using Pkg
+Pkg.add("LRUCache")
+```
 
 ## Interface
 
@@ -16,11 +29,16 @@ operations are shown below:
 **Creation**
 
 ```julia
-lru = LRU{K, V}(, maxsize = size)
+lru = LRU{K, V}(, maxsize = size [, by = ...])
 ```
 
 Create an LRU Cache with a maximum size (number of items) specified by the *required*
-keyword argument `maxsize`.
+keyword argument `maxsize`. Here, the size can be the number of elements (default), or the
+maximal total size of the values in the dictionary, as counted by an arbitrary user
+function (which should return a single value of type `Int`) specified with the keyword
+argument `by`. Sensible choices would for example be `by = sizeof` for e.g. values which
+are `Array`s of bitstypes, or `by = Base.summarysize` for values of some arbitrary user
+type.
 
 **Add an item to the cache**
 
@@ -41,6 +59,10 @@ lru[key]
 ```julia
 resize!(lru; maxsize = size)
 ```
+
+Here, the maximal size is specified via a required keyword argument. Remember that the
+maximal size is not necessarily the same as the maximal length, if a custom function was
+specified using the keyword argument `by` in the construction of the LRU cache.
 
 **Empty the cache**
 
@@ -72,15 +94,15 @@ end
 
 #### get(lru::LRU, key, default)
 
-Returns the value stored in `lru` for `key` if present. If not, returns default without storing this value in `lru`. Also comes in the following form:
+Returns the value stored in `lru` for `key` if present. If not, returns default without
+storing this value in `lru`. Also comes in the following form:
 
 #### get(default::Callable, lru::LRU, key)
 
 ## Example
 
-Commonly, you may have some long running function that sometimes gets called
-with the same parameters more than once. As such, it may benefit from cacheing
-the results.
+Commonly, you may have some long running function that sometimes gets called with the same
+parameters more than once. As such, it may benefit from caching the results.
 
 Here's our example, long running calculation:
 
