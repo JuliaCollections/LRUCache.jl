@@ -1,7 +1,4 @@
-module Tests
-
-using LRUCache
-using Test
+@testset "Original tests" begin
 
 function test_order(lru, keys, vals)
     for (i, (k,v)) = enumerate(lru)
@@ -10,7 +7,7 @@ function test_order(lru, keys, vals)
     end
 end
 
-const CACHE = LRU{Int, Int}(; maxsize = 20)
+CACHE = LRU{Int, Int}(; maxsize = 20)
 # Test insertion ordering
 kvs = 1:10
 for i in reverse(kvs)
@@ -68,7 +65,7 @@ end
 # Test Abstract typed cache. All we're checking for here is that the container
 # is able to hold abstract types without issue. Insertion order is already
 # tested above.
-const CACHE2 = LRU{String, Integer}(; maxsize = 5)
+CACHE2 = LRU{String, Integer}(; maxsize = 5)
 CACHE2["test"] = 4
 @test CACHE2["test"] == 4
 
