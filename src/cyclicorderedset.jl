@@ -16,7 +16,7 @@ end
 
 mutable struct CyclicOrderedSet{T} <: AbstractSet{T}
     first::Union{LinkedNode{T}, Nothing}
-    length::Int64
+    length::Int
 
     CyclicOrderedSet{T}() where {T} = new{T}(nothing, 0)
 end

@@ -10,10 +10,10 @@ _constone(x) = 1
 
 # Default cache size
 mutable struct LRU{K,V} <: AbstractDict{K,V}
-    dict::Dict{K, Tuple{V, LinkedNode{K}, Int64}}
+    dict::Dict{K, Tuple{V, LinkedNode{K}, Int}}
     keyset::CyclicOrderedSet{K}
-    currentsize::Int64
-    maxsize::Int64
+    currentsize::Int
+    maxsize::Int
     lock::SpinLock
     by::Callable
 
