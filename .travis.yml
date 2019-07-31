@@ -22,4 +22,3 @@ matrix:
   - julia: nightly
 
 codecov: true
-coveralls: true
