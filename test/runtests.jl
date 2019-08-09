@@ -54,14 +54,16 @@ end
     for i in 100:-1:1
         @test 2*i == get(cache, i, 2*i)
         @test 2*i == get(()->2*i, cache, i)
-        @test i == get!(cache, i, i)
+        @test i == (iseven(i) ? get!(cache, i, i) : get!(()->i, cache, i))
         @test i == get!(cache, i, 2*i)
         @test i == get!(()->error("this should not happen"), cache, i)
         @test i == get(cache, i, 2*i)
+        @test i == get(()->2*i, cache, i)
     end
     for i in 1:50
         @test haskey(cache, i)
         @test !haskey(cache, i+50)
+        @test_throws KeyError getindex(cache, i+50)
     end
 
     @test collect(cache) == collect(i=>i for i in 1:50)
@@ -108,10 +110,11 @@ end
     @threads for i in 50:-1:1
         @test 2*i == get(cache, i, 2*i)
         @test 2*i == get(()->2*i, cache, i)
-        @test i == get!(cache, i, i)
+        @test i == (iseven(i) ? get!(cache, i, i) : get!(()->i, cache, i))
         @test i == get!(cache, i, 2*i)
         @test i == get!(()->error("this should not happen"), cache, i)
         @test i == get(cache, i, 2*i)
+        @test i == get(()->2*i, cache, i)
     end
 
     p = randperm(50)
@@ -127,9 +130,11 @@ end
 
     delete!(cache, p10[1])
     @test !haskey(cache, p10[1])
+    @test_throws KeyError getindex(cache, p10[1])
 
     @test p10[10] == pop!(cache, p10[10])
     @test !haskey(cache, p10[10])
+    @test_throws KeyError getindex(cache, p10[1])
 end
 
 include("originaltests.jl")
