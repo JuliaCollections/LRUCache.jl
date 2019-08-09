@@ -38,28 +38,94 @@ end
 Base.length(lru::LRU) = length(lru.keyset)
 Base.isempty(lru::LRU) = isempty(lru.keyset)
 function Base.sizehint!(lru::LRU, n::Integer)
+    lock(lru.lock)
     sizehint!(lru.dict, n)
+    unlock(lru.lock)
     return lru
 end
 
-Base.haskey(lru::LRU, key) = haskey(lru.dict, key)
-Base.get(lru::LRU, key, default) = haskey(lru, key) ? lru[key] : default
-Base.get(default::Callable, lru::LRU, key) = haskey(lru, key) ? lru[key] : default()
-
-Base.get!(default::Callable, lru::LRU, key) =
-    haskey(lru, key) ? lru[key] : (lru[key] = default())
-Base.get!(lru::LRU, key, default) = haskey(lru, key) ? lru[key] : (lru[key] = default)
-
-function Base.getindex(lru::LRU, key)
+_unsafe_haskey(lru::LRU, key) = haskey(lru.dict, key)
+function Base.haskey(lru::LRU, key)
     lock(lru.lock)
-    v, n, s = lru.dict[key]
-    _move_to_front!(lru.keyset, n)
+    b = _unsafe_haskey(lru, key)
+    unlock(lru.lock)
+    return b
+end
+function Base.get(lru::LRU, key, default)
+    lock(lru.lock)
+    if _unsafe_haskey(lru, key)
+        v = _unsafe_getindex(lru, key)
+        unlock(lru.lock)
+        return v
+    else
+        unlock(lru.lock)
+        return default
+    end
+end
+function Base.get(default::Callable, lru::LRU, key)
+    lock(lru.lock)
+    if _unsafe_haskey(lru, key)
+        v = _unsafe_getindex(lru, key)
+        unlock(lru.lock)
+        return v
+    else
+        unlock(lru.lock)
+        return default()
+    end
+end
+function Base.get!(lru::LRU, key, default)
+    lock(lru.lock)
+    if _unsafe_haskey(lru, key)
+        v = _unsafe_getindex(lru, key)
+        unlock(lru.lock)
+        return v
+    end
+    v = default
+    _unsafe_addindex!(lru, v, key)
+    _unsafe_resize!(lru)
     unlock(lru.lock)
     return v
 end
-function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
+function Base.get!(default::Callable, lru::LRU, key)
     lock(lru.lock)
-    if haskey(lru, key)
+    if _unsafe_haskey(lru, key)
+        v = _unsafe_getindex(lru, key)
+        unlock(lru.lock)
+        return v
+    end
+    v = default()
+    _unsafe_addindex!(lru, v, key)
+    _unsafe_resize!(lru)
+    unlock(lru.lock)
+    return v
+end
+
+function _unsafe_getindex(lru::LRU, key)
+    v, n, s = lru.dict[key]
+    _move_to_front!(lru.keyset, n)
+    return v
+end
+function Base.getindex(lru::LRU, key)
+    lock(lru.lock)
+    if _unsafe_haskey(lru, key)
+        v = _unsafe_getindex(lru, key)
+        unlock(lru.lock)
+        return v
+    else
+        unlock(lru.lock)
+        throw(KeyError(key))
+    end
+end
+function _unsafe_addindex!(lru::LRU{K}, v, key) where K
+    n = LinkedNode{K}(key)
+    rotate!(_push!(lru.keyset, n))
+    s = lru.by(v)::Int
+    lru.currentsize += s
+    lru.dict[key] = (v, n, s)
+end
+function Base.setindex!(lru::LRU, v, key)
+    lock(lru.lock)
+    if _unsafe_haskey(lru, key)
         _, n, s = lru.dict[key]
         lru.currentsize -= s
         s = lru.by(v)::Int
@@ -67,30 +133,26 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
         lru.dict[key] = (v, n, s)
         _move_to_front!(lru.keyset, n)
     else
-        n = LinkedNode{K}(key)
-        rotate!(_push!(lru.keyset, n))
-        s = lru.by(v)::Int
-        lru.currentsize += s
-        lru.dict[key] = (v, n, s)
+        _unsafe_addindex!(lru, v, key)
     end
-    while lru.currentsize > lru.maxsize
-        k = pop!(lru.keyset)
-        _, _, s = pop!(lru.dict, k)
-        lru.currentsize -= s
-    end
+    _unsafe_resize!(lru)
     unlock(lru.lock)
     return lru
 end
 
-function Base.resize!(lru::LRU; maxsize::Integer = 0)
-    @assert 0 <= maxsize
-    lock(lru.lock)
+function _unsafe_resize!(lru::LRU, maxsize::Integer = lru.maxsize)
     lru.maxsize = maxsize
     while lru.currentsize > lru.maxsize
         key = pop!(lru.keyset)
         v, n, s = pop!(lru.dict, key)
         lru.currentsize -= s
     end
+    return lru
+end
+function Base.resize!(lru::LRU; maxsize::Integer = lru.maxsize)
+    @assert 0 <= maxsize
+    lock(lru.lock)
+    _unsafe_resize!(lru, maxsize)
     unlock(lru.lock)
     return lru
 end
