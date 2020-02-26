@@ -21,6 +21,8 @@ mutable struct LRU{K,V} <: AbstractDict{K,V}
         new{K, V}(Dict{K, V}(), CyclicOrderedSet{K}(), 0, maxsize, SpinLock(), by)
 end
 
+LRU(; maxsize::Int, by::Callable = _constone) = LRU{Any,Any}(maxsize=maxsize, by=by)
+
 Base.show(io::IO, lru::LRU{K, V}) where {K, V} =
     print(io, "LRU{$K, $V}(; maxsize = $(lru.maxsize))")
 

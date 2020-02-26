@@ -5,25 +5,25 @@ using Base.Threads
 
 # Test insertion and reinsertion ordering
 @testset "Single-threaded insertion and reinsertion" begin
-    cache = LRU{Int, Int}(; maxsize = 100)
+    for cache in [LRU(; maxsize = 100), LRU{Int, Int}(; maxsize = 100)]
+        r = 1:100
+        for i in reverse(r)
+            cache[i] = i
+        end
+        @test collect(cache) == collect(i=>i for i in r)
 
-    r = 1:100
-    for i in reverse(r)
-        cache[i] = i
-    end
-    @test collect(cache) == collect(i=>i for i in r)
+        @threads for i = 1:10:100
+            @test haskey(cache, i)
+            @test !haskey(cache, 100+i)
+        end
 
-    @threads for i = 1:10:100
-        @test haskey(cache, i)
-        @test !haskey(cache, 100+i)
+        # reinsert in random order
+        p = randperm(100)
+        for i in reverse(p)
+            cache[i] = i
+        end
+        @test collect(cache) == collect(i=>i for i in p)
     end
-
-    # reinsert in random order
-    p = randperm(100)
-    for i in reverse(p)
-        cache[i] = i
-    end
-    @test collect(cache) == collect(i=>i for i in p)
 end
 
 @testset "Multi-threaded insertion and reinsertion" begin
