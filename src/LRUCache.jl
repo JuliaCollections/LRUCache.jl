@@ -63,11 +63,13 @@ function Base.get(lru::LRU, key, default)
     end
 end
 function Base.get(default::Callable, lru::LRU, key)
-    lock(lru.lock) do
-        if _unsafe_haskey(lru, key)
-            v = _unsafe_getindex(lru, key)
-            return v
-        end
+    lock(lru.lock)
+    if _unsafe_haskey(lru, key)
+        v = _unsafe_getindex(lru, key)
+        unlock(lru.lock)
+        return v
+    else
+        unlock(lru.lock)
     end
     return default()
 end
@@ -84,18 +86,20 @@ function Base.get!(lru::LRU, key, default)
     end
 end
 function Base.get!(default::Callable, lru::LRU, key)
-    lock(lru.lock) do
-        if _unsafe_haskey(lru, key)
-            v = _unsafe_getindex(lru, key)
-            return v
-        end
+    lock(lru.lock)
+    if _unsafe_haskey(lru, key)
+        v = _unsafe_getindex(lru, key)
+        unlock(lru.lock)
+        return v
+    else
+        unlock(lru.lock)
     end
     v = default()
-    lock(lru.lock) do
-        _unsafe_addindex!(lru, v, key)
-        _unsafe_resize!(lru)
-        return v
-    end
+    lock(lru.lock)
+    _unsafe_addindex!(lru, v, key)
+    _unsafe_resize!(lru)
+    unlock(lru.lock)
+    return v
 end
 
 function _unsafe_getindex(lru::LRU, key)
