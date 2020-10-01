@@ -96,8 +96,13 @@ function Base.get!(default::Callable, lru::LRU, key)
     end
     v = default()
     lock(lru.lock)
-    _unsafe_addindex!(lru, v, key)
-    _unsafe_resize!(lru)
+    if _unsafe_haskey(lru, key)
+        # should we test that this yields the same result as default()
+        v = _unsafe_getindex(lru, key)
+    else
+        _unsafe_addindex!(lru, v, key)
+        _unsafe_resize!(lru)
+    end
     unlock(lru.lock)
     return v
 end
