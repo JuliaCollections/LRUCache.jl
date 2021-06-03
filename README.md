@@ -29,7 +29,7 @@ operations are shown below:
 **Creation**
 
 ```julia
-lru = LRU{K, V}(, maxsize = size [, by = ...] [,eviction_callback = ...])
+lru = LRU{K, V}(, maxsize = size [, by = ...] [,finalizer = ...])
 ```
 
 Create an LRU Cache with a maximum size (number of items) specified by the *required*
@@ -40,9 +40,9 @@ argument `by`. Sensible choices would for example be `by = sizeof` for e.g. valu
 are `Array`s of bitstypes, or `by = Base.summarysize` for values of some arbitrary user
 type.
 
-If `eviction_callback` is set, it is called for each entry that leaves the cache,
-with `key` and `value` as arguments. This is useful if the cached values contain some
-resource that you want to recover.
+If `finalizer` is set, it is called for each entry that leaves the cache, with `key` and
+`value` as arguments. This is useful if the cached values contain some resource that you
+want to recover.
 
 **Add an item to the cache**
 
