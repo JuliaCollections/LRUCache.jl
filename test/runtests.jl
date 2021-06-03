@@ -153,7 +153,7 @@ end
     end
 end
 
-@testset "Eviction callback" begin
+@testset "Finalizer callback" begin
     # Julia 1.0 and 1.1 crash with multiple threads on this
     # combination of @threads and Channel.
     if VERSION >= v"1.2" || Threads.nthreads() == 1
@@ -162,8 +162,7 @@ end
             put!(resources, zeros(5, 5))
         end
         callback = (key, value) -> put!(resources, value)
-        cache = LRU{Int,Matrix{Float64}}(; maxsize = 10,
-                                         eviction_callback = callback)
+        cache = LRU{Int,Matrix{Float64}}(; maxsize = 10, finalizer = callback)
 
         @threads for i = 1:100
             cache[i ÷ gcd(i, 60)] = take!(resources)
