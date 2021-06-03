@@ -162,8 +162,7 @@ end
             put!(resources, zeros(5, 5))
         end
         callback = (key, value) -> put!(resources, value)
-        cache = LRU{Int,Matrix{Float64}}(; maxsize = 10,
-                                         eviction_callback = callback)
+        cache = LRU{Int,Matrix{Float64}}(; maxsize = 10, finalizer = callback)
 
         @threads for i = 1:100
             cache[i ÷ gcd(i, 60)] = take!(resources)
