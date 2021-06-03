@@ -153,4 +153,43 @@ end
     end
 end
 
+@testset "Eviction callback" begin
+    # Julia 1.0 and 1.1 crash with multiple threads on this
+    # combination of @threads and Channel.
+    if VERSION >= v"1.2" || Threads.nthreads() == 1
+        resources = Channel{Matrix{Float64}}(11)
+        for _ = 1:11
+            put!(resources, zeros(5, 5))
+        end
+        callback = (key, value) -> put!(resources, value)
+        cache = LRU{Int,Matrix{Float64}}(; maxsize = 10,
+                                         eviction_callback = callback)
+
+        @threads for i = 1:100
+            cache[i ÷ gcd(i, 60)] = take!(resources)
+        end
+        # Note: It's not ideal to rely on the Channel internals but there
+        # doesn't seem to be a public way to check how much is occupied.
+        @test length(resources.data) == 1
+        cache[101] = take!(resources)
+        @test length(resources.data) == 1
+        pop!(cache, 101)
+        @test length(resources.data) == 2
+        cache[101] = take!(resources)
+        @test length(resources.data) == 1
+        delete!(cache, 101)
+        @test length(resources.data) == 2
+        get!(cache, 101, take!(resources))
+        @test length(resources.data) == 1
+        get!(() -> take!(resources), cache, 102)
+        @test length(resources.data) == 1
+        get!(() -> take!(resources), cache, 102)
+        @test length(resources.data) == 1
+        resize!(cache, maxsize = 5)
+        @test length(resources.data) == 6
+        empty!(cache)
+        @test length(resources.data) == 11
+    end
+end
+
 include("originaltests.jl")
