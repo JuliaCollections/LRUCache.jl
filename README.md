@@ -1,6 +1,7 @@
 # LRUCache.jl
 
-[![Build Status](https://travis-ci.org/JuliaCollections/LRUCache.jl.svg)](https://travis-ci.org/JuliaCollections/LRUCache.jl)
+[![CI](https://github.com/JuliaCollections/LRUCache.jl/workflows/CI/badge.svg)](https://github.com/JuliaCollections/LRUCache.jl/workflows/CI/actions?query=workflow%3ACI)
+[![CI (Julia nightly)](https://github.com/JuliaCollections/LRUCache.jl/workflows/CI%20(Julia%20nightly)/badge.svg)](https://github.com/JuliaCollections/LRUCache.jl/workflows/CI/actions?query=workflow%3A%22CI+%28Julia+nightly%29%22)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
 [![codecov.io](http://codecov.io/github/JuliaCollections/LRUCache.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaCollections/LRUCache.jl?branch=master)
 
