@@ -7,7 +7,6 @@ using Base.Threads
 using Base: Callable
 
 _constone(x) = 1
-function _no_callback end
 
 # Default cache size
 mutable struct LRU{K,V} <: AbstractDict{K,V}
@@ -16,20 +15,18 @@ mutable struct LRU{K,V} <: AbstractDict{K,V}
     currentsize::Int
     maxsize::Int
     lock::SpinLock
-    by::Callable
-    eviction_callback::Callable
+    by::Any
+    finalizer::Any
 
-    LRU{K, V}(; maxsize::Int, by::Callable = _constone,
-              eviction_callback::Callable = _no_callback) where {K, V} =
-        new{K, V}(Dict{K, V}(), CyclicOrderedSet{K}(), 0, maxsize, SpinLock(),
-                  by, eviction_callback)
+    function LRU{K, V}(; maxsize::Int, by = _constone, finalizer = nothing) where {K, V}
+        dict = Dict{K, V}()
+        keyset = CyclicOrderedSet{K}()
+        new{K, V}(dict, keyset , 0, maxsize, SpinLock(), by, finalizer)
+    end
 end
 
-function LRU(; maxsize::Int, by::Callable = _constone,
-             eviction_callback::Callable = _no_callback)
-    return LRU{Any,Any}(maxsize=maxsize, by=by,
-                        eviction_callback=eviction_callback)
-end
+LRU(; maxsize::Int, by = _constone, finalizer = nothing) =
+    LRU{Any,Any}(maxsize = maxsize, by = by, finalizer = finalizer)
 
 Base.show(io::IO, lru::LRU{K, V}) where {K, V} =
     print(io, "LRU{$K, $V}(; maxsize = $(lru.maxsize))")
@@ -93,7 +90,7 @@ function Base.get!(lru::LRU{K, V}, key, default) where {K, V}
         _unsafe_resize!(lru, evictions)
         return v
     end
-    _notify_evictions!(lru.eviction_callback, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return v
 end
 function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
@@ -116,7 +113,7 @@ function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
         _unsafe_resize!(lru, evictions)
     end
     unlock(lru.lock)
-    _notify_evictions!(lru.eviction_callback, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return v
 end
 
@@ -147,7 +144,7 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
     lock(lru.lock) do
         if _unsafe_haskey(lru, key)
             old_v, n, s = lru.dict[key]
-            if lru.eviction_callback !== _no_callback
+            if lru.finalizer !== nothing
                 push!(evictions, (key, old_v))
             end
             lru.currentsize -= s
@@ -160,7 +157,7 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
         end
         _unsafe_resize!(lru, evictions)
     end
-    _notify_evictions!(lru.eviction_callback, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return lru
 end
 
@@ -170,7 +167,7 @@ function _unsafe_resize!(lru::LRU{K, V}, evictions::Vector{Tuple{K, V}},
     while lru.currentsize > lru.maxsize
         key = pop!(lru.keyset)
         v, n, s = pop!(lru.dict, key)
-        if lru.eviction_callback !== _no_callback
+        if lru.finalizer !== nothing
             push!(evictions, (key, v))
         end
         lru.currentsize -= s
@@ -183,57 +180,54 @@ function Base.resize!(lru::LRU{K, V}; maxsize::Integer = lru.maxsize) where {K, 
     lock(lru.lock) do
         _unsafe_resize!(lru, evictions, maxsize)
     end
-    _notify_evictions!(lru.eviction_callback, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return lru
 end
 
 function Base.delete!(lru::LRU{K, V}, key) where {K, V}
-    evictions = Tuple{K, V}[]
-    lock(lru.lock) do
-        v, n, s = pop!(lru.dict, key)
-        if lru.eviction_callback !== _no_callback
-            push!(evictions, (key, v))
-        end
-        lru.currentsize -= s
-        _delete!(lru.keyset, n)
-    end
-    _notify_evictions!(lru.eviction_callback, evictions)
-    return lru
-end
-function Base.pop!(lru::LRU{K, V}, key) where {K, V}
-    evictions = Tuple{K, V}[]
     v = lock(lru.lock) do
         v, n, s = pop!(lru.dict, key)
-        if lru.eviction_callback !== _no_callback
-            push!(evictions, (key, v))
-        end
         lru.currentsize -= s
         _delete!(lru.keyset, n)
         return v
     end
-    _notify_evictions!(lru.eviction_callback, evictions)
+    if lru.finalizer !== nothing
+        lru.finalizer(key, v)
+    end
+    return lru
+end
+function Base.pop!(lru::LRU{K, V}, key) where {K, V}
+    (key, v) = lock(lru.lock) do
+        v, n, s = pop!(lru.dict, key)
+        lru.currentsize -= s
+        _delete!(lru.keyset, n)
+        return (key, v)
+    end
+    if lru.finalizer !== nothing
+        lru.finalizer(key, v)
+    end
     return v
 end
 
 function Base.empty!(lru::LRU{K, V}) where {K, V}
     evictions = Tuple{K, V}[]
     lock(lru.lock) do
-        if lru.eviction_callback === _no_callback
+        if lru.finalizer === nothing
             lru.currentsize = 0
             empty!(lru.dict)
             empty!(lru.keyset)
         else
+            sizehint!(evictions, length(lru))
             _unsafe_resize!(lru, evictions, 0)
         end
     end
-    _notify_evictions!(lru.eviction_callback, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return lru
 end
 
-function _notify_evictions!(callback, evictions)
-    while !isempty(evictions)
-        key, value = pop!(evictions)
-        callback(key, value)
+function _finalize_evictions!(finalizer, evictions)
+    for (key, value) in evictions
+        finalizer(key, value)
     end
     return
 end
