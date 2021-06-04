@@ -7,7 +7,6 @@ using Base.Threads
 using Base: Callable
 
 _constone(x) = 1
-function _no_callback end
 
 # Default cache size
 mutable struct LRU{K,V} <: AbstractDict{K,V}
@@ -91,7 +90,7 @@ function Base.get!(lru::LRU{K, V}, key, default) where {K, V}
         _unsafe_resize!(lru, evictions)
         return v
     end
-    _finalize_evicitions!(lru.finalizer, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return v
 end
 function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
@@ -114,7 +113,7 @@ function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
         _unsafe_resize!(lru, evictions)
     end
     unlock(lru.lock)
-    _finalize_evicitions!(lru.finalizer, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return v
 end
 
@@ -158,7 +157,7 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
         end
         _unsafe_resize!(lru, evictions)
     end
-    _finalize_evicitions!(lru.finalizer, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return lru
 end
 
@@ -181,7 +180,7 @@ function Base.resize!(lru::LRU{K, V}; maxsize::Integer = lru.maxsize) where {K, 
     lock(lru.lock) do
         _unsafe_resize!(lru, evictions, maxsize)
     end
-    _finalize_evicitions!(lru.finalizer, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return lru
 end
 
@@ -222,11 +221,11 @@ function Base.empty!(lru::LRU{K, V}) where {K, V}
             _unsafe_resize!(lru, evictions, 0)
         end
     end
-    _finalize_evicitions!(lru.finalizer, evictions)
+    _finalize_evictions!(lru.finalizer, evictions)
     return lru
 end
 
-function _finalize_evicitions!(finalizer, evictions)
+function _finalize_evictions!(finalizer, evictions)
     for (key, value) in evictions
         finalizer(key, value)
     end
