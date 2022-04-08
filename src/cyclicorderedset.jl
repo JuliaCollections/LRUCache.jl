@@ -164,3 +164,21 @@ function _move_to_front!(s::CyclicOrderedSet{T}, n::LinkedNode{T}) where {T}
     end
     return s
 end
+
+# Reverse iterator for LRUCache.CyclicOrderedSet
+Base.eltype(::Type{Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}}) where {T} = eltype(T)
+Base.IteratorSize(::Type{Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}}) where {T} = Base.IteratorSize(LRUCache.CyclicOrderedSet)
+Base.IteratorEltype(::Type{Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}}) where {T} = Base.IteratorSize(LRUCache.CyclicOrderedSet)
+Base.last(r::Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}) where {T} = first(r.itr)
+Base.first(r::Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}) where {T} = r.itr.first.prev.val
+
+function Base.iterate(
+    s::Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}, 
+    state = (s.itr.first isa Nothing) ? nothing : s.itr.first.prev
+) where {T}
+    if state === nothing
+        return nothing
+    else
+        return state.val, state.prev.val == first(s) ? nothing : state.prev
+    end
+end

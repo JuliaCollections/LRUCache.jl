@@ -191,4 +191,31 @@ end
     end
 end
 
+@testset "reverse iterator" begin
+    lru = LRU(;maxsize = 4)
+    # Instantiate lazy reverse iterator
+    rlru = Iterators.reverse(lru)
+    # Did we handle the empty cache?
+    @test [k => v for (k,v) in lru] == []       
+    @test [k => v for (k,v) in rlru] == []
+    # Fill in some data
+    lru["first"] = 1
+    # Does a single element cache work
+    @test [k => v for (k,v) in lru] == ["first" => 1]        
+    @test [k => v for (k,v) in rlru] == ["first" => 1]
+    lru["second"] = 2
+    # Does a partially filled cache work
+    @test [k => v for (k,v) in lru] == ["second" => 2, "first" => 1]        
+    @test [k => v for (k,v) in rlru] == ["first" => 1, "second" => 2]
+    lru["third"] = 3
+    lru["fourth"] = 4
+    # Does forward iteration give us the expected result?
+    @test [k => v for (k,v) in lru] == ["fourth" => 4, "third" => 3, "second" => 2, "first" => 1]
+    @test [k => v for (k,v) in rlru] == ["first" => 1, "second" => 2, "third" => 3, "fourth" => 4]
+    # Evict first by inserting fifth
+    lru["fifth"] = 5
+    @test [k => v for (k,v) in lru] == ["fifth" => 5, "fourth" => 4, "third" => 3, "second" => 2]
+    @test [k => v for (k,v) in rlru] == ["second" => 2, "third" => 3, "fourth" => 4, "fifth" => 5]
+end
+
 include("originaltests.jl")

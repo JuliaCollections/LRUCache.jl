@@ -3,6 +3,7 @@ module LRUCache
 include("cyclicorderedset.jl")
 export LRU
 
+using Base.Iterators
 using Base.Threads
 using Base: Callable
 
@@ -231,5 +232,24 @@ function _finalize_evictions!(finalizer, evictions)
     end
     return
 end
+
+# Reverse iterator for LRUCache.LRU
+Base.eltype(::Type{Iterators.Reverse{LRUCache.LRU{T}}}) where {T} = eltype(T)
+Base.IteratorSize(::Type{Iterators.Reverse{LRUCache.LRU{T}}}) where {T} = Base.IteratorSize(LRUCache.CyclicOrderedSet)
+Base.IteratorEltype(::Type{Iterators.Reverse{LRUCache.LRU{T}}}) where {T} = Base.IteratorSize(LRUCache.LRU)
+Base.length(lru::Iterators.Reverse{LRUCache.LRU{T}}) where {T} = length(lru.keyset)
+Base.isempty(lru::Iterators.Reverse{LRUCache.LRU{T}}) where {T} = isempty(lru.keyset)
+
+function Base.iterate(lru::Iterators.Reverse{LRU{T,B}}, state...) where {T,B}
+    next = iterate(Iterators.Reverse(lru.itr.keyset), state...)
+    if next === nothing
+        return nothing
+    else
+        k, state = next
+        v, = lru.itr.dict[k]
+        return k=>v, state
+    end
+end
+
 
 end # module
