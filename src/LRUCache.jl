@@ -236,9 +236,9 @@ end
 # Reverse iterator for LRUCache.LRU
 Base.eltype(::Type{Iterators.Reverse{LRUCache.LRU{T}}}) where {T} = eltype(T)
 Base.IteratorSize(::Type{Iterators.Reverse{LRUCache.LRU{T}}}) where {T} = Base.IteratorSize(LRUCache.CyclicOrderedSet)
-Base.IteratorEltype(::Type{Iterators.Reverse{LRUCache.LRU{T}}}) where {T} = Base.IteratorSize(LRUCache.LRU)
-Base.length(lru::Iterators.Reverse{LRUCache.LRU{T}}) where {T} = length(lru.keyset)
-Base.isempty(lru::Iterators.Reverse{LRUCache.LRU{T}}) where {T} = isempty(lru.keyset)
+Base.IteratorEltype(::Type{Iterators.Reverse{LRUCache.LRU{T}}}) where {T} = Base.IteratorEltype(LRUCache.LRU)
+Base.length(lru::Iterators.Reverse{LRUCache.LRU{T}}) where {T} = length(lru.itr.keyset)
+Base.isempty(lru::Iterators.Reverse{LRUCache.LRU{T}}) where {T} = isempty(lru.itr.keyset)
 
 function Base.iterate(lru::Iterators.Reverse{LRU{T,B}}, state...) where {T,B}
     next = iterate(Iterators.Reverse(lru.itr.keyset), state...)
@@ -250,6 +250,5 @@ function Base.iterate(lru::Iterators.Reverse{LRU{T,B}}, state...) where {T,B}
         return k=>v, state
     end
 end
-
 
 end # module

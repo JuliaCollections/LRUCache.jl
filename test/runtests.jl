@@ -191,7 +191,7 @@ end
     end
 end
 
-@testset "reverse iterator" begin
+@testset "Reverse iterator" begin
     lru = LRU(;maxsize = 4)
     # Instantiate lazy reverse iterator
     rlru = Iterators.reverse(lru)

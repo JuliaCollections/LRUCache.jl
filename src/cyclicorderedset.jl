@@ -168,7 +168,7 @@ end
 # Reverse iterator for LRUCache.CyclicOrderedSet
 Base.eltype(::Type{Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}}) where {T} = eltype(T)
 Base.IteratorSize(::Type{Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}}) where {T} = Base.IteratorSize(LRUCache.CyclicOrderedSet)
-Base.IteratorEltype(::Type{Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}}) where {T} = Base.IteratorSize(LRUCache.CyclicOrderedSet)
+Base.IteratorEltype(::Type{Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}}) where {T} = Base.IteratorEltype(LRUCache.CyclicOrderedSet)
 Base.last(r::Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}) where {T} = first(r.itr)
 Base.first(r::Iterators.Reverse{LRUCache.CyclicOrderedSet{T}}) where {T} = r.itr.first.prev.val
 
