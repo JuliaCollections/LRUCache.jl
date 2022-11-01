@@ -122,7 +122,7 @@ As this function requires more than one parameter, we need a cache from
 `(Float64, Float64)` to `Float64`. A cached version is then:
 
 ```julia
-const lru = LRU{Tuple{Float64, Float64}, Float64}()
+const lru = LRU{Tuple{Float64, Float64}, Float64}(maxsize=10)
 
 function cached_foo(a::Float64, b::Float64)
     get!(lru, (a, b)) do
