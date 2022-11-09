@@ -1,4 +1,4 @@
-using Base: HasEltype, HasLength, EltypeUnknown
+using Base: IteratorEltype, HasEltype, HasLength, EltypeUnknown
 
 mutable struct LinkedNode{T}
     val::T
@@ -31,13 +31,6 @@ function _CyclicOrderedSet(itr, ::EltypeUnknown)
 end
 CyclicOrderedSet{T}(itr) where {T} = union!(CyclicOrderedSet{T}(), itr)
 
-function Base.iterate(s::CyclicOrderedSet, state = s.first)
-    if state === nothing
-        return nothing
-    else
-        return state.val, state.next == s.first ? nothing : state.next
-    end
-end
 Base.IteratorSize(::Type{<:CyclicOrderedSet}) = HasLength()
 Base.IteratorEltype(::Type{<:CyclicOrderedSet}) = HasEltype()
 Base.length(s::CyclicOrderedSet) = s.length
@@ -45,9 +38,30 @@ Base.isempty(s::CyclicOrderedSet) = length(s) == 0
 
 Base.empty(s::CyclicOrderedSet{T}, ::Type{U}=T) where {T,U} = CyclicOrderedSet{U}()
 
+function Base.iterate(s::CyclicOrderedSet, state = s.first)
+    if state === nothing
+        return nothing
+    else
+        return state.val, state.next == s.first ? nothing : state.next
+    end
+end
+function Base.iterate(s::Iterators.Reverse{<:LRUCache.CyclicOrderedSet},
+    state = (s.itr.first isa Nothing) ? nothing : s.itr.first.prev)
+    if state === nothing
+        return nothing
+    else
+        return state.val, state.prev == s.itr.first.prev ? nothing : state.prev
+    end
+end
 
-function Base.show(io::IO, s::CyclicOrderedSet{T}) where {T}
-    print(io, "CyclicOrderedSet{", T, "}(")
+function Base.last(s::CyclicOrderedSet)
+    isempty(s) && throw(ArgumentError("collection must be non-empty"))
+    return s.first.prev.val
+end
+
+function Base.show(io::IO, s::CyclicOrderedSet)
+    print(io, typeof(s))
+    print(io, "([")
     if s.first !== nothing
         f = s.first
         show(io, f.val)
@@ -58,7 +72,7 @@ function Base.show(io::IO, s::CyclicOrderedSet{T}) where {T}
             n = n.next
         end
     end
-    print(io, ")")
+    print(io, "])")
 end
 
 function _findnode(s::CyclicOrderedSet, x)

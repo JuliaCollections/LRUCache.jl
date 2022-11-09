@@ -41,6 +41,16 @@ function Base.iterate(lru::LRU, state...)
         return k=>v, state
     end
 end
+function Base.iterate(lru::Iterators.Reverse{<:LRU}, state...)
+    next = iterate(Iterators.Reverse(lru.itr.keyset), state...)
+    if next === nothing
+        return nothing
+    else
+        k, state = next
+        v, = lru.itr.dict[k]
+        return k=>v, state
+    end
+end
 
 Base.length(lru::LRU) = length(lru.keyset)
 Base.isempty(lru::LRU) = isempty(lru.keyset)
