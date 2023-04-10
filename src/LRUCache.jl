@@ -78,10 +78,13 @@ function Base.get(lru::LRU, key, default)
     end
 end
 function Base.get(default::Callable, lru::LRU, key)
-    Base.@lock lru.lock begin
+    lock(lru.lock)
+    try
         if _unsafe_haskey(lru, key)
             return _unsafe_getindex(lru, key)
         end
+    finally
+        unlock(lru.lock)
     end
     return default()
 end
@@ -102,13 +105,17 @@ function Base.get!(lru::LRU{K, V}, key, default) where {K, V}
 end
 function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
     evictions = Tuple{K, V}[]
-    Base.@lock lru.lock begin
+    lock(lru.lock)
+    try
         if _unsafe_haskey(lru, key)
             return _unsafe_getindex(lru, key)
         end
+    finally
+        unlock(lru.lock)
     end
     v = default()
-    Base.@lock lru.lock begin
+    lock(lru.lock)
+    try
         if _unsafe_haskey(lru, key)
             # should we test that this yields the same result as default()
             v = _unsafe_getindex(lru, key)
@@ -116,6 +123,8 @@ function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
             _unsafe_addindex!(lru, v, key)
             _unsafe_resize!(lru, evictions)
         end
+    finally
+        unlock(lru.lock)
     end
     _finalize_evictions!(lru.finalizer, evictions)
     return v
