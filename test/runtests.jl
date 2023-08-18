@@ -218,4 +218,38 @@ end
     @test [k => v for (k,v) in rlru] == ["second" => 2, "third" => 3, "fourth" => 4, "fifth" => 5]
 end
 
+# https://github.com/JuliaCollections/LRUCache.jl/issues/37
+@testset "Large entries" begin
+    lru = LRU{Int, Vector{Int}}(; maxsize=10, by=length)
+    get!(lru, 1, 1:9)
+    @test !isempty(lru)
+    @test lru[1] == 1:9
+
+    # Add too-big entry
+    get!(lru, 2, 1:11)
+    # did not add entry 2, it is too big
+    @test !haskey(lru, 2)
+
+    # Still have old entries
+    @test !isempty(lru)
+    @test lru[1] == 1:9
+
+    # Same with `setindex!`
+    lru[2] = 1:11
+    @test !haskey(lru, 2)
+    @test !isempty(lru)
+    @test lru[1] == 1:9
+
+    # Add a second small entry
+    lru[2] = 1:1
+    @test haskey(lru, 2)
+    @test lru[1] == 1:9
+    @test lru[2] == 1:1
+
+    # Re-assign it to a too-big entry
+    lru[2] = 1:11
+    @test !haskey(lru, 2) # don't keep the old entry!
+    @test lru[1] == 1:9
+end
+
 include("originaltests.jl")

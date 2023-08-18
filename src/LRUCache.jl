@@ -146,11 +146,14 @@ function Base.getindex(lru::LRU, key)
     end
 end
 function _unsafe_addindex!(lru::LRU{K}, v, key) where K
+    s = lru.by(v)::Int
+    # If entry is larger than entire cache, don't add it
+    s > lru.maxsize && return
     n = LinkedNode{K}(key)
     rotate!(_push!(lru.keyset, n))
-    s = lru.by(v)::Int
     lru.currentsize += s
     lru.dict[key] = (v, n, s)
+    return
 end
 function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
     evictions = Tuple{K, V}[]
@@ -162,9 +165,18 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
             end
             lru.currentsize -= s
             s = lru.by(v)::Int
-            lru.currentsize += s
-            lru.dict[key] = (v, n, s)
-            _move_to_front!(lru.keyset, n)
+            # If new entry is larger than entire cache, don't add it
+            # (but still evict the old entry!)
+            if s > lru.maxsize
+                # We are inside the lock still, so we will remove it manually rather than
+                # `delete!(lru, key)` which would need the lock again.
+                delete!(lru.dict, key)
+                _delete!(lru.keyset, n)
+            else # add the new entry
+                lru.currentsize += s
+                lru.dict[key] = (v, n, s)
+                _move_to_front!(lru.keyset, n)
+            end
         else
             _unsafe_addindex!(lru, v, key)
         end
