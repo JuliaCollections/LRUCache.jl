@@ -188,6 +188,7 @@ end
         @test length(resources.data) == 6
         empty!(cache)
         @test length(resources.data) == 11
+        @test cache.maxsize == 5
     end
 end
 
