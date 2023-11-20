@@ -106,7 +106,7 @@ storing this value in `lru`. Also comes in the following form:
 
 #### cache_info(lru::LRU)
 
-Returns a struct holding a snapshot of information about hits, misses, current size, and total size in is properties.
+Returns an object holding a snapshot of information about hits, misses, current size, and total size in its properties.
 
 The caching functions `get` and `get!` each contribute a cache hit or miss on every function call (depending on whether or not the key was found). `empty!` resets the counts of hits and misses to 0.
 

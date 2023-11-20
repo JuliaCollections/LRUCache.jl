@@ -270,7 +270,6 @@ end
     @test cache_info(lru) == info
     @test sprint(show, info) == "CacheInfo(; hits=2, misses=2, currentsize=1, maxsize=10)"
 
-
     # These don't change the hits and misses
     @test haskey(lru, 1)
     @test cache_info(lru) == info
