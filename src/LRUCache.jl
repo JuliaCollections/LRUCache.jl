@@ -1,7 +1,7 @@
 module LRUCache
 
 include("cyclicorderedset.jl")
-export LRU
+export LRU, cache_info
 
 using Base.Threads
 using Base: Callable
@@ -14,6 +14,8 @@ mutable struct LRU{K,V} <: AbstractDict{K,V}
     keyset::CyclicOrderedSet{K}
     currentsize::Int
     maxsize::Int
+    hits::Int
+    misses::Int
     lock::SpinLock
     by::Any
     finalizer::Any
@@ -21,7 +23,51 @@ mutable struct LRU{K,V} <: AbstractDict{K,V}
     function LRU{K, V}(; maxsize::Int, by = _constone, finalizer = nothing) where {K, V}
         dict = Dict{K, V}()
         keyset = CyclicOrderedSet{K}()
-        new{K, V}(dict, keyset , 0, maxsize, SpinLock(), by, finalizer)
+        new{K, V}(dict, keyset , 0, maxsize, 0, 0, SpinLock(), by, finalizer)
+    end
+end
+
+Base.@kwdef struct CacheInfo
+    hits::Int
+    misses::Int
+    currentsize::Int
+    maxsize::Int
+end
+
+function Base.show(io::IO, c::CacheInfo)
+    return print(io, "CacheInfo(; hits=$(c.hits), misses=$(c.misses), currentsize=$(c.currentsize), maxsize=$(c.maxsize))")
+end
+
+"""
+    cache_info(lru::LRU) -> CacheInfo
+
+Returns a `CacheInfo` object holding a snapshot of information about the cache hits, misses, current size, and maximum size, current as of when the function was called. To access the values programmatically, use property access, e.g. `info.hits`.
+
+Note that only `get!` and `get` contribute to hits and misses, and `empty!` resets the counts of hits and misses to 0.
+
+## Example
+
+```jldoctest
+lru = LRU{Int, Float64}(maxsize=10)
+
+get!(lru, 1, 1.0) # miss
+
+get!(lru, 1, 1.0) # hit
+
+get(lru, 2, 2) # miss
+
+get(lru, 2, 2) # miss
+
+info = cache_info(lru)
+
+# output
+
+CacheInfo(; hits=1, misses=3, currentsize=1, maxsize=10)
+```
+"""
+function cache_info(lru::LRU)
+    lock(lru.lock) do
+        return CacheInfo(; hits=lru.hits, misses=lru.misses, currentsize=lru.currentsize, maxsize=lru.maxsize)
     end
 end
 
@@ -71,8 +117,10 @@ function Base.get(lru::LRU, key, default)
     lock(lru.lock) do
         if _unsafe_haskey(lru, key)
             v = _unsafe_getindex(lru, key)
+            lru.hits += 1
             return v
         else
+            lru.misses += 1
             return default
         end
     end
@@ -81,8 +129,10 @@ function Base.get(default::Callable, lru::LRU, key)
     lock(lru.lock)
     try
         if _unsafe_haskey(lru, key)
+            lru.hits += 1
             return _unsafe_getindex(lru, key)
         end
+        lru.misses += 1
     finally
         unlock(lru.lock)
     end
@@ -92,12 +142,14 @@ function Base.get!(lru::LRU{K, V}, key, default) where {K, V}
     evictions = Tuple{K, V}[]
     v = lock(lru.lock) do
         if _unsafe_haskey(lru, key)
+            lru.hits += 1
             v = _unsafe_getindex(lru, key)
             return v
         end
         v = default
         _unsafe_addindex!(lru, v, key)
         _unsafe_resize!(lru, evictions)
+        lru.misses += 1
         return v
     end
     _finalize_evictions!(lru.finalizer, evictions)
@@ -108,6 +160,7 @@ function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
     lock(lru.lock)
     try
         if _unsafe_haskey(lru, key)
+            lru.hits += 1
             return _unsafe_getindex(lru, key)
         end
     finally
@@ -117,11 +170,13 @@ function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
     lock(lru.lock)
     try
         if _unsafe_haskey(lru, key)
+            lru.hits += 1
             # should we test that this yields the same result as default()
             v = _unsafe_getindex(lru, key)
         else
             _unsafe_addindex!(lru, v, key)
             _unsafe_resize!(lru, evictions)
+            lru.misses += 1
         end
     finally
         unlock(lru.lock)
@@ -245,6 +300,8 @@ function Base.empty!(lru::LRU{K, V}) where {K, V}
             sizehint!(evictions, length(lru))
             _unsafe_resize!(lru, evictions, 0)
         end
+        lru.hits = 0
+        lru.misses = 0
     end
     _finalize_evictions!(lru.finalizer, evictions)
     return lru

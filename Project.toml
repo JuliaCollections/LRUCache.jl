@@ -1,6 +1,6 @@
 name = "LRUCache"
 uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
-version = "1.5.0"
+version = "1.6.0"
 
 [compat]
 julia = "1"

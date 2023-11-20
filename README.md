@@ -104,6 +104,14 @@ storing this value in `lru`. Also comes in the following form:
 
 #### get(default::Callable, lru::LRU, key)
 
+#### cache_info(lru::LRU)
+
+Returns a struct holding a snapshot of information about hits, misses, current size, and total size in is properties.
+
+The caching functions `get` and `get!` each contribute a cache hit or miss on every function call (depending on whether or not the key was found). `empty!` resets the counts of hits and misses to 0.
+
+The other functions, e.g. `getindex` `iterate`, `haskey`, `setindex!`, `delete!`, and `pop!` do not contribute cache hits or misses, regardless of whether or not a key is retrieved. This is because it is not possible to use these functions for caching.
+
 ## Example
 
 Commonly, you may have some long running function that sometimes gets called with the same
@@ -130,3 +138,5 @@ function cached_foo(a::Float64, b::Float64)
     end
 end
 ```
+
+If we want to see how our cache is performing, we can call `cache_info` to see the number of cache hits and misses.
