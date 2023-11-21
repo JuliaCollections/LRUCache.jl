@@ -298,7 +298,9 @@ function Base.empty!(lru::LRU{K, V}) where {K, V}
             empty!(lru.keyset)
         else
             sizehint!(evictions, length(lru))
+            maxsize = lru.maxsize
             _unsafe_resize!(lru, evictions, 0)
+            lru.maxsize = maxsize # restore `maxsize`
         end
         lru.hits = 0
         lru.misses = 0
