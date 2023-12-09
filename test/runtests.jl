@@ -1,4 +1,5 @@
 using LRUCache
+using LRUCache: CacheInfo
 using Test
 using Random
 using Base.Threads
@@ -251,6 +252,48 @@ end
     lru[2] = 1:11
     @test !haskey(lru, 2) # don't keep the old entry!
     @test lru[1] == 1:9
+end
+
+@testset "cache_info" begin
+    lru = LRU{Int, Float64}(; maxsize=10)
+
+    get!(lru, 1, 1.0) # miss
+    @test cache_info(lru) == CacheInfo(; hits=0, misses=1, currentsize=1, maxsize=10)
+
+    get!(lru, 1, 1.0) # hit
+    @test cache_info(lru) == CacheInfo(; hits=1, misses=1, currentsize=1, maxsize=10)
+
+    get(lru, 1, 1.0) # hit
+    @test cache_info(lru) == CacheInfo(; hits=2, misses=1, currentsize=1, maxsize=10)
+
+    get(lru, 2, 1.0) # miss
+    info = CacheInfo(; hits=2, misses=2, currentsize=1, maxsize=10)
+    @test cache_info(lru) == info
+    @test sprint(show, info) == "CacheInfo(; hits=2, misses=2, currentsize=1, maxsize=10)"
+
+    # These don't change the hits and misses
+    @test haskey(lru, 1)
+    @test cache_info(lru) == info
+    @test lru[1] == 1.0
+    @test cache_info(lru) == info
+    @test !haskey(lru, 2)
+    @test cache_info(lru) == info
+
+    # This affects `currentsize` but not hits or misses
+    delete!(lru, 1)
+    @test cache_info(lru) == CacheInfo(; hits=2, misses=2, currentsize=0, maxsize=10)
+
+    # Likewise setindex! does not affect hits or misses, just `currentsize`
+    lru[1] = 1.0
+    @test cache_info(lru) == info
+
+    # Only affects size
+    pop!(lru, 1)
+    @test cache_info(lru) == CacheInfo(; hits=2, misses=2, currentsize=0, maxsize=10)
+
+    # Resets counts
+    empty!(lru)
+    @test cache_info(lru) == CacheInfo(; hits=0, misses=0, currentsize=0, maxsize=10)
 end
 
 include("originaltests.jl")
