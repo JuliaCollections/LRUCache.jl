@@ -297,3 +297,4 @@ end
 end
 
 include("originaltests.jl")
+include("serializationtests.jl")
