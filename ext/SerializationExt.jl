@@ -1,5 +1,4 @@
 module SerializationExt
-export serialize, deserialize
 using LRUCache
 using Serialization
 
