@@ -19,7 +19,7 @@ using Serialization
     @test cache.by == deserialized_cache.by
     @test cache.finalizer == deserialized_cache.finalizer
     @test cache.keyset.length == deserialized_cache.keyset.length
-    @test length(cache.dict) == length(deserialized_cache.dict)
+    @test issetequal(collect(cache), collect(deserialized_cache))
     # Check that the cache has the same keyset
     c_node = cache.keyset.first
     d_node = deserialized_cache.keyset.first
