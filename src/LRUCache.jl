@@ -317,3 +317,7 @@ function _finalize_evictions!(finalizer, evictions)
 end
 
 end # module
+
+if !isdefined(Base, :get_extension)
+  include("../ext/SerializationExt.jl")
+end
