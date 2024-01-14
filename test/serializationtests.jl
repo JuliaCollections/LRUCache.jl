@@ -7,9 +7,10 @@ using Serialization
     for i in 1:1_000_000
         cache[i] = i+1
     end
-    serialize("cache.jls", cache)
-    deserialized_cache = deserialize("cache.jls")
-    rm("cache.jls")
+    io = IOBuffer()
+    serialize(io, cache)
+    seekstart(io)
+    deserialized_cache = deserialize(io)
 
     # Check that the cache is the same
     @test cache.maxsize == deserialized_cache.maxsize
