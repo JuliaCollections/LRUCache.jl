@@ -7,16 +7,16 @@ using Serialization
 # create a custom serializer that represents LinkedNodes as Ints
 function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K, V}
     # Create a mapping from memory address to id
-    node_map = Dict{Ptr, Int}()
+    node_map = IdDict{LRUCache.LinkedNode{K}, Int}()
     # Create mapping for first node
     id = 1
     first_node = node = lru.keyset.first
-    node_map[pointer_from_objref(node)] = id
+    node_map[node] = id
     # Go through the rest of the nodes in the cycle and create a mapping
     node = node.next
     while node != first_node
         id += 1
-        node_map[pointer_from_objref(node)] = id
+        node_map[node] = id
         node = node.next
     end
     @assert id == length(lru) == lru.keyset.length == length(lru.dict)
@@ -25,7 +25,7 @@ function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K
     # Create the dict with ids instead of nodes
     dict = Dict{K, Tuple{V, Int, Int}}()
     for (key, (value, node, s)) in lru.dict
-        id = node_map[pointer_from_objref(node)]
+        id = node_map[node]
         dict[key] = (value, id, s)
     end
     Serialization.writetag(s.io, Serialization.OBJECT_TAG)
