@@ -59,8 +59,8 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
     end
     # Link the nodes
     for (idx, node) in enumerate(nodes)
-        node.next = nodes[idx % n_nodes + 1]
-        node.prev = nodes[idx == 1 ? n_nodes : idx - 1]
+        node.next = nodes[mod1(idx+1, n_nodes)]
+        node.prev = nodes[mod1(idx-1, n_nodes)]
     end
     # Create keyset with first node and n_nodes
     keyset = LRUCache.CyclicOrderedSet{K}()
