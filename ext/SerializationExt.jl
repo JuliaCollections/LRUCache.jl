@@ -7,6 +7,7 @@ using Serialization
 function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K, V}
     # Create a mapping from memory address to id
     node_map = IdDict{LRUCache.LinkedNode{K}, Int}()
+    sizehint!(node_map, length(lru))
     # Create mapping for first node
     id = 1
     first_node = node = lru.keyset.first
