@@ -23,9 +23,9 @@ function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K
     # so when deserializing, we can infer the order by the id
     # Create the dict with ids instead of nodes
     dict = Dict{K, Tuple{V, Int, Int}}()
-    for (key, (value, node, s)) in lru.dict
+    for (key, (value, node, sz)) in lru.dict
         id = node_map[node]
-        dict[key] = (value, id, s)
+        dict[key] = (value, id, sz)
     end
     Serialization.writetag(s.io, Serialization.OBJECT_TAG)
     Serialization.serialize(s, typeof(lru))
