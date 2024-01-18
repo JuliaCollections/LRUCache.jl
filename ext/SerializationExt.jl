@@ -2,46 +2,25 @@ module SerializationExt
 using LRUCache
 using Serialization
 
-# Serialization of large LRUs causes a stack overflow error, so we 
-# create a custom serializer that represents LinkedNodes as Ints
 function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K, V}
-    # Create a mapping from memory address to id
-    node_map = IdDict{LRUCache.LinkedNode{K}, Int}()
-    sizehint!(node_map, length(lru))
-    # Create mapping for first node
-    id = 1
-    first_node = node = lru.keyset.first
-    node_map[node] = id
-    # Go through the rest of the nodes in the cycle and create a mapping
-    node = node.next
-    while node != first_node
-        id += 1
-        node_map[node] = id
-        node = node.next
-    end
-    @assert id == length(lru) == lru.keyset.length == length(lru.dict)
-    # By this point, the first node has id 1 and the last node has id length(lru)
-    # so when deserializing, we can infer the order by the id
-    # Create the dict with ids instead of nodes
-    dict = Dict{K, Tuple{V, Int, Int}}()
-    for (key, (value, node, sz)) in lru.dict
-        id = node_map[node]
-        dict[key] = (value, id, sz)
-    end
     Serialization.writetag(s.io, Serialization.OBJECT_TAG)
-    Serialization.serialize(s, typeof(lru))
-    Serialization.serialize(s, dict)
-    Serialization.serialize(s, lru.currentsize)
-    Serialization.serialize(s, lru.maxsize)
-    Serialization.serialize(s, lru.hits)
-    Serialization.serialize(s, lru.misses)
-    Serialization.serialize(s, lru.lock)
-    Serialization.serialize(s, lru.by)
-    Serialization.serialize(s, lru.finalizer)
+    serialize(s, typeof(lru))
+    @assert lru.currentsize == length(lru)
+    serialize(s, lru.currentsize)
+    serialize(s, lru.maxsize)
+    serialize(s, lru.hits)
+    serialize(s, lru.misses)
+    serialize(s, lru.lock)
+    serialize(s, lru.by)
+    serialize(s, lru.finalizer)
+    for (k, val) in lru
+        serialize(s, k)
+        serialize(s, val)
+    end
 end
 
 function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) where {K, V}
-    dict_with_ids = Serialization.deserialize(s)
+
     currentsize = Serialization.deserialize(s)
     maxsize = Serialization.deserialize(s)
     hits = Serialization.deserialize(s)
@@ -49,25 +28,46 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
     lock = Serialization.deserialize(s)
     by = Serialization.deserialize(s)
     finalizer = Serialization.deserialize(s)
-    # Create a new keyset and mapping from id to node
-    n_nodes = length(dict_with_ids)
-    nodes = Vector{LRUCache.LinkedNode{K}}(undef, n_nodes)
+
     dict = Dict{K, Tuple{V, LRUCache.LinkedNode{K}, Int}}()
-    # Create the nodes, but don't link them yet
-    for (key, (value, id, s)) in dict_with_ids
-        nodes[id] = LRUCache.LinkedNode{K}(key)
-        dict[key] = (value, nodes[id], s)
+    sizehint!(dict, currentsize)
+    # Create node chain
+    # first entry
+    k = deserialize(s)
+    first = node = LRUCache.LinkedNode{K}(k)
+    val = deserialize(s)
+    sz = by(val)::Int
+    dict[k] = (val, node, sz)
+    # middle entries
+    for i in 2:currentsize-1
+        prev = node
+        k = deserialize(s)
+        node = LRUCache.LinkedNode{K}(k)
+        prev.next = node
+        node.prev = prev
+        val = deserialize(s)
+        sz = by(val)::Int
+        dict[k] = (val, node, sz)
     end
-    # Link the nodes
-    for (idx, node) in enumerate(nodes)
-        node.next = nodes[mod1(idx+1, n_nodes)]
-        node.prev = nodes[mod1(idx-1, n_nodes)]
-    end
-    # Create keyset with first node and n_nodes
+    # last node
+    prev = node
+    k = deserialize(s)
+    node = LRUCache.LinkedNode{K}(k)
+    prev.next = node
+    node.prev = prev
+    val = deserialize(s)
+    sz = by(val)::Int
+    dict[k] = (val, node, sz)
+    # close the chain
+    node.next = first
+    first.prev = node
+
+    # Createa cyclic ordered set from the node chain
     keyset = LRUCache.CyclicOrderedSet{K}()
-    keyset.first = nodes[1]
-    keyset.length = n_nodes
-    # Create LRU
+    keyset.first = first
+    keyset.length = currentsize
+
+    # Create the LRU
     lru = LRU{K,V}(maxsize=maxsize)
     lru.dict = dict
     lru.keyset = keyset
