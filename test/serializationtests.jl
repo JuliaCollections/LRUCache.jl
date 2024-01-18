@@ -22,13 +22,8 @@ using Serialization
     @test cache.keyset.length == deserialized_cache.keyset.length
     @test issetequal(collect(cache), collect(deserialized_cache))
     # Check that the cache has the same keyset
-    c_node = cache.keyset.first
-    d_node = deserialized_cache.keyset.first
-    for i in 1:cache.keyset.length
-        c_node.val == d_node.val || @test false
-        c_node = c_node.next
-        d_node = d_node.next
-    end
+    @test length(cache.keyset) == length(deserialized_cache.keyset)
+    @test all(((c_val, d_val),) -> c_val == d_val, zip(cache.keyset, deserialized_cache.keyset))
     # Check that the cache keys, values, and sizes are the same
     for (key, (c_value, c_node, c_s)) in cache.dict
         d_value, d_node, d_s = deserialized_cache.dict[key]
