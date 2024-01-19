@@ -1,5 +1,5 @@
 using Serialization
-@testset "Serialize and Deserialize" begin
+@testset "Large Serialize and Deserialize" begin
 
     cache = LRU{Int, Int}(maxsize=100_000)
 
@@ -33,4 +33,17 @@ using Serialization
         end
         cache[i] = i+1
     end
+end
+
+@testset "Serialize mutable references" begin
+    lru = LRU(; maxsize=5)
+    a = b = [1]
+    lru[1] = a
+    lru[2] = b
+    @test lru[1] === lru[2]
+    io = IOBuffer()
+    serialize(io, lru)
+    seekstart(io)
+    lru2 = deserialize(io)
+    @test lru2[1] === lru2[2]
 end
