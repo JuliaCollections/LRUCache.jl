@@ -51,7 +51,7 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
         end
     end
     # close the chain if any node exists
-    if !isnothing(node)
+    if node !== nothing
         node.next = first
         first.prev = node
     end
