@@ -16,6 +16,8 @@ function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K
     for (k, val) in lru
         serialize(s, k)
         serialize(s, val)
+        sz = lru.dict[k][3]
+        serialize(s, sz)
     end
 end
 
@@ -38,7 +40,7 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
         k = deserialize(s)
         node = LRUCache.LinkedNode{K}(k)
         val = deserialize(s)
-        sz = by(val)::Int
+        sz = deserialize(s)
         dict[k] = (val, node, sz)
         if i == 1 
             first = node
