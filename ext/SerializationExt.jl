@@ -20,7 +20,6 @@ function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K
 end
 
 function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) where {K, V}
-
     currentsize = Serialization.deserialize(s)
     maxsize = Serialization.deserialize(s)
     hits = Serialization.deserialize(s)
@@ -32,35 +31,28 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
     dict = Dict{K, Tuple{V, LRUCache.LinkedNode{K}, Int}}()
     sizehint!(dict, currentsize)
     # Create node chain
-    # first entry
-    k = deserialize(s)
-    first = node = LRUCache.LinkedNode{K}(k)
-    val = deserialize(s)
-    sz = by(val)::Int
-    dict[k] = (val, node, sz)
-    # middle entries
-    for i in 2:currentsize-1
+    first = nothing
+    node = nothing
+    for i in 1:currentsize
         prev = node
         k = deserialize(s)
         node = LRUCache.LinkedNode{K}(k)
-        prev.next = node
-        node.prev = prev
         val = deserialize(s)
         sz = by(val)::Int
         dict[k] = (val, node, sz)
+        if i == 1 
+            first = node
+            continue
+        else
+            prev.next = node
+            node.prev = prev
+        end
     end
-    # last node
-    prev = node
-    k = deserialize(s)
-    node = LRUCache.LinkedNode{K}(k)
-    prev.next = node
-    node.prev = prev
-    val = deserialize(s)
-    sz = by(val)::Int
-    dict[k] = (val, node, sz)
-    # close the chain
-    node.next = first
-    first.prev = node
+    # close the chain if any node exists
+    if !isnothing(node)
+        node.next = first
+        first.prev = node
+    end
 
     # Createa cyclic ordered set from the node chain
     keyset = LRUCache.CyclicOrderedSet{K}()
@@ -79,5 +71,4 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
     lru.finalizer = finalizer
     lru
 end
-
 end
