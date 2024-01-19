@@ -6,6 +6,9 @@ using Serialization
     # Populate the cache with dummy data
     num_entries_to_test = [0, 1, 2, 3, 4, 5, 100_000, 1_000_000]
     for i in 0:maximum(num_entries_to_test)
+        # Add dummy data on all but the first iteration,
+        # to test an empty cache
+        i > 0 && (cache[i] = i+1)
         i ∈ num_entries_to_test || continue
         io = IOBuffer()
         serialize(io, cache)
@@ -31,7 +34,6 @@ using Serialization
             c_node.val == d_node.val || @test false
             c_s == d_s || @test false
         end
-        cache[i] = i+1
     end
 end
 
