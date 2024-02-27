@@ -15,6 +15,8 @@ that data access does not lead to race conditions.
 A particular use case of this package is to implement function memoization for functions
 that can simultaneously be called from different threads.
 
+See [LFUDACache.jl](https://github.com/OpenSesame/LFUDACache.jl) for a similar implementation of Least Frequently Used (LFU) caches.
+
 ## Installation
 Install with the package manager via `]add LRUCache` or
 ```julia
