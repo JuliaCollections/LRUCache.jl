@@ -5,7 +5,6 @@ using Serialization
 function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K, V}
     Serialization.writetag(s.io, Serialization.OBJECT_TAG)
     serialize(s, typeof(lru))
-    @assert lru.currentsize == length(lru)
     serialize(s, lru.currentsize)
     serialize(s, lru.maxsize)
     serialize(s, lru.hits)
@@ -13,6 +12,7 @@ function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K
     serialize(s, lru.lock)
     serialize(s, lru.by)
     serialize(s, lru.finalizer)
+    serialize(s, length(lru))
     for (k, val) in lru
         serialize(s, k)
         serialize(s, val)
@@ -29,20 +29,21 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
     lock = Serialization.deserialize(s)
     by = Serialization.deserialize(s)
     finalizer = Serialization.deserialize(s)
+    n_items = Serialization.deserialize(s)
 
     dict = Dict{K, Tuple{V, LRUCache.LinkedNode{K}, Int}}()
-    sizehint!(dict, currentsize)
+    sizehint!(dict, n_items)
     # Create node chain
     first = nothing
     node = nothing
-    for i in 1:currentsize
+    for i in 1:n_items
         prev = node
         k = deserialize(s)
         node = LRUCache.LinkedNode{K}(k)
         val = deserialize(s)
         sz = deserialize(s)
         dict[k] = (val, node, sz)
-        if i == 1 
+        if i == 1
             first = node
             continue
         else
@@ -56,10 +57,10 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
         first.prev = node
     end
 
-    # Createa cyclic ordered set from the node chain
+    # Create a cyclic ordered set from the node chain
     keyset = LRUCache.CyclicOrderedSet{K}()
     keyset.first = first
-    keyset.length = currentsize
+    keyset.length = n_items
 
     # Create the LRU
     lru = LRU{K,V}(maxsize=maxsize)
@@ -73,4 +74,5 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
     lru.finalizer = finalizer
     lru
 end
+
 end
