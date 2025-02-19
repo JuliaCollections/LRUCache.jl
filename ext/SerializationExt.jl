@@ -5,14 +5,13 @@ using Serialization
 function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K, V}
     Serialization.writetag(s.io, Serialization.OBJECT_TAG)
     serialize(s, typeof(lru))
-    serialize(s, lru.currentsize)
+    serialize(s, length(lru))
     serialize(s, lru.maxsize)
     serialize(s, lru.hits)
     serialize(s, lru.misses)
     serialize(s, lru.lock)
     serialize(s, lru.by)
     serialize(s, lru.finalizer)
-    serialize(s, length(lru))
     for (k, val) in lru
         serialize(s, k)
         serialize(s, val)
@@ -22,17 +21,17 @@ function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K
 end
 
 function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) where {K, V}
-    currentsize = Serialization.deserialize(s)
+    n_items = Serialization.deserialize(s)
     maxsize = Serialization.deserialize(s)
     hits = Serialization.deserialize(s)
     misses = Serialization.deserialize(s)
     lock = Serialization.deserialize(s)
     by = Serialization.deserialize(s)
     finalizer = Serialization.deserialize(s)
-    n_items = Serialization.deserialize(s)
 
     dict = Dict{K, Tuple{V, LRUCache.LinkedNode{K}, Int}}()
     sizehint!(dict, n_items)
+    currentsize = 0
     # Create node chain
     first = nothing
     node = nothing
@@ -43,6 +42,7 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
         val = deserialize(s)
         sz = deserialize(s)
         dict[k] = (val, node, sz)
+        currentsize += sz
         if i == 1
             first = node
             continue
