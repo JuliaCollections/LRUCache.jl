@@ -1,4 +1,4 @@
-name: CI
+name: CI (Julia nightly)
 on:
   - push
   - pull_request
