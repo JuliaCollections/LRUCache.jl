@@ -2,7 +2,7 @@ module SerializationExt
 using LRUCache
 using Serialization
 
-function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K, V}
+function Serialization.serialize(s::AbstractSerializer, lru::LRU)
     Serialization.writetag(s.io, Serialization.OBJECT_TAG)
     serialize(s, typeof(lru))
     serialize(s, length(lru))
@@ -20,7 +20,7 @@ function Serialization.serialize(s::AbstractSerializer, lru::LRU{K, V}) where {K
     end
 end
 
-function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) where {K, V}
+function Serialization.deserialize(s::AbstractSerializer, ::Type{<:LRU{K, V}}) where {K, V}
     n_items = Serialization.deserialize(s)
     maxsize = Serialization.deserialize(s)
     hits = Serialization.deserialize(s)
@@ -63,15 +63,13 @@ function Serialization.deserialize(s::AbstractSerializer, ::Type{LRU{K, V}}) whe
     keyset.length = n_items
 
     # Create the LRU
-    lru = LRU{K,V}(maxsize=maxsize)
+    lru = LRU{K,V}(maxsize=maxsize, by=by, finalizer=finalizer)
     lru.dict = dict
     lru.keyset = keyset
     lru.currentsize = currentsize
     lru.hits = hits
     lru.misses = misses
     lru.lock = lock
-    lru.by = by
-    lru.finalizer = finalizer
     lru
 end
 

@@ -9,7 +9,7 @@ using Base: Callable
 _constone(x) = 1
 
 # Default cache size
-mutable struct LRU{K,V} <: AbstractDict{K,V}
+mutable struct LRU{K,V,B,F} <: AbstractDict{K,V}
     dict::Dict{K, Tuple{V, LinkedNode{K}, Int}}
     keyset::CyclicOrderedSet{K}
     currentsize::Int
@@ -17,13 +17,13 @@ mutable struct LRU{K,V} <: AbstractDict{K,V}
     hits::Int
     misses::Int
     lock::SpinLock
-    by::Any
-    finalizer::Any
+    by::B
+    finalizer::F
 
     function LRU{K, V}(; maxsize::Int, by = _constone, finalizer = nothing) where {K, V}
         dict = Dict{K, V}()
         keyset = CyclicOrderedSet{K}()
-        new{K, V}(dict, keyset , 0, maxsize, 0, 0, SpinLock(), by, finalizer)
+        new{K, V, typeof(by), typeof(finalizer)}(dict, keyset , 0, maxsize, 0, 0, SpinLock(), by, finalizer)
     end
 end
 
@@ -139,24 +139,24 @@ function Base.get(default::Callable, lru::LRU, key)
     return default()
 end
 function Base.get!(lru::LRU{K, V}, key, default) where {K, V}
-    evictions = Tuple{K, V}[]
-    v = lock(lru.lock) do
+    local evictions
+    lock(lru.lock)
+    try
         if _unsafe_haskey(lru, key)
             lru.hits += 1
-            v = _unsafe_getindex(lru, key)
-            return v
+            return _unsafe_getindex(lru, key)
         end
-        v = default
-        _unsafe_addindex!(lru, v, key)
+        evictions = _new_evictions(lru)
+        _unsafe_addindex!(lru, default, key)
         _unsafe_resize!(lru, evictions)
         lru.misses += 1
-        return v
+    finally
+        unlock(lru.lock)
     end
     _finalize_evictions!(lru.finalizer, evictions)
-    return v
+    return default
 end
 function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
-    evictions = Tuple{K, V}[]
     lock(lru.lock)
     try
         if _unsafe_haskey(lru, key)
@@ -167,6 +167,7 @@ function Base.get!(default::Callable, lru::LRU{K, V}, key) where {K, V}
         unlock(lru.lock)
     end
     v = default()
+    evictions = _new_evictions(lru)
     lock(lru.lock)
     try
         if _unsafe_haskey(lru, key)
@@ -211,7 +212,7 @@ function _unsafe_addindex!(lru::LRU{K}, v, key) where K
     return
 end
 function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
-    evictions = Tuple{K, V}[]
+    evictions = _new_evictions(lru)
     lock(lru.lock) do
         if _unsafe_haskey(lru, key)
             old_v, n, s = lru.dict[key]
@@ -241,8 +242,10 @@ function Base.setindex!(lru::LRU{K, V}, v, key) where {K, V}
     return lru
 end
 
-function _unsafe_resize!(lru::LRU{K, V}, evictions::Vector{Tuple{K, V}},
-                         maxsize::Integer = lru.maxsize) where {K, V}
+_new_evictions(::LRU{K, V, B, Nothing}) where {K, V, B} = nothing
+_new_evictions(::LRU{K, V}) where {K, V} = Tuple{K, V}[]
+
+function _unsafe_resize!(lru::LRU, evictions, maxsize::Integer = lru.maxsize)
     lru.maxsize = maxsize
     while lru.currentsize > lru.maxsize
         key = pop!(lru.keyset)
@@ -256,7 +259,7 @@ function _unsafe_resize!(lru::LRU{K, V}, evictions::Vector{Tuple{K, V}},
 end
 function Base.resize!(lru::LRU{K, V}; maxsize::Integer = lru.maxsize) where {K, V}
     @assert 0 <= maxsize
-    evictions = Tuple{K, V}[]
+    evictions = _new_evictions(lru)
     lock(lru.lock) do
         _unsafe_resize!(lru, evictions, maxsize)
     end
@@ -265,23 +268,18 @@ function Base.resize!(lru::LRU{K, V}; maxsize::Integer = lru.maxsize) where {K, 
 end
 
 function Base.delete!(lru::LRU{K, V}, key) where {K, V}
-    v = lock(lru.lock) do
-        v, n, s = pop!(lru.dict, key)
-        lru.currentsize -= s
-        _delete!(lru.keyset, n)
-        return v
-    end
-    if lru.finalizer !== nothing
-        lru.finalizer(key, v)
-    end
+    pop!(lru, key)
     return lru
 end
 function Base.pop!(lru::LRU{K, V}, key) where {K, V}
-    (key, v) = lock(lru.lock) do
+    lock(lru.lock)
+    v = try
         v, n, s = pop!(lru.dict, key)
         lru.currentsize -= s
         _delete!(lru.keyset, n)
-        return (key, v)
+        v
+    finally
+        unlock(lru.lock)
     end
     if lru.finalizer !== nothing
         lru.finalizer(key, v)
@@ -290,7 +288,7 @@ function Base.pop!(lru::LRU{K, V}, key) where {K, V}
 end
 
 function Base.empty!(lru::LRU{K, V}) where {K, V}
-    evictions = Tuple{K, V}[]
+    evictions = _new_evictions(lru)
     lock(lru.lock) do
         if lru.finalizer === nothing
             lru.currentsize = 0
@@ -309,6 +307,7 @@ function Base.empty!(lru::LRU{K, V}) where {K, V}
     return lru
 end
 
+_finalize_evictions!(::Nothing, ::Nothing) = nothing
 function _finalize_evictions!(finalizer, evictions)
     for (key, value) in evictions
         finalizer(key, value)
