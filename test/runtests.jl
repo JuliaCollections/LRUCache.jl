@@ -296,5 +296,26 @@ end
     @test cache_info(lru) == CacheInfo(; hits=0, misses=0, currentsize=0, maxsize=10)
 end
 
+_get_allocs(lru, key) = @allocated get!(lru, key, 0)
+_get_callable_allocs(lru, key) = @allocated get!(() -> 0, lru, key)
+_setindex_allocs(lru, key) = @allocated (lru[key] = 0)
+
+@testset "Type-stable fields and allocation-free hits" begin
+    for finalizer in (nothing, (k, v) -> nothing)
+        lru = LRU{Int, Int}(; maxsize = 10, by = abs, finalizer = finalizer)
+        T = typeof(lru)
+        @test all(i -> isconcretetype(fieldtype(T, i)), 1:fieldcount(T))
+        lru[1] = 0
+        for f in (_get_allocs, _get_callable_allocs, _setindex_allocs)
+            f(lru, 1) # compile
+        end
+        @test _get_allocs(lru, 1) == 0
+        @test _get_callable_allocs(lru, 1) == 0
+        if finalizer === nothing
+            @test _setindex_allocs(lru, 1) == 0
+        end
+    end
+end
+
 include("originaltests.jl")
 include("serializationtests.jl")
