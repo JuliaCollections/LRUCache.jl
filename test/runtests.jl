@@ -311,7 +311,8 @@ _setindex_allocs(lru, key) = @allocated (lru[key] = 0)
         end
         @test _get_allocs(lru, 1) == 0
         @test _get_callable_allocs(lru, 1) == 0
-        if finalizer === nothing
+        # Before Julia 1.5 (#33886), storing the `(v, node, size)` tuple into the Dict boxes it.
+        if finalizer === nothing && VERSION >= v"1.5"
             @test _setindex_allocs(lru, 1) == 0
         end
     end
